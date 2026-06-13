@@ -1,19 +1,21 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { cosineSimilarity, embed } from "../embeddings";
+import { isSupabaseConfigured } from "../supabase/client";
+import * as supabaseStore from "./supabase-store";
 import type { MemoryHit, MemoryRecord, MemoryType } from "../types";
 
 /**
- * Disk-backed vector store for brand memory (Phase 3).
+ * Brand-memory vector store (Phase 3/4).
  *
- * Records are persisted as JSON at data/memory.json and held in an in-memory
- * cache for fast cosine search. This is a lightweight stand-in for ChromaDB —
- * the public functions below mirror what a Chroma collection offers (add /
- * query / list / delete), so swapping in a real Chroma server later is contained.
+ * Two backends behind one interface:
+ *   • Supabase pgvector — used when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are
+ *     set. Persists across serverless invocations; this is the production path.
+ *   • Disk JSON (below) — the zero-setup local fallback. Persists in local dev
+ *     but NOT on serverless hosts (ephemeral filesystem).
  *
- * Note: a local JSON file persists in local dev but NOT on serverless hosts
- * (Vercel's filesystem is ephemeral). For production, back this with Supabase
- * pgvector or a hosted Chroma instance.
+ * Embeddings are computed locally with all-MiniLM-L6-v2 in both cases. The
+ * exported functions dispatch to whichever backend is configured.
  */
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -43,8 +45,7 @@ function makeId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Embed and store a piece of the user's writing. */
-export async function addMemory(
+async function diskAddMemory(
   text: string,
   type: MemoryType,
   userId = "local"
@@ -66,8 +67,7 @@ export async function addMemory(
   return record;
 }
 
-/** All memories for a user, newest first, without embeddings. */
-export async function listMemories(userId = "local"): Promise<MemoryHit[]> {
+async function diskListMemories(userId = "local"): Promise<MemoryHit[]> {
   const records = await load();
   return records
     .filter((r) => r.userId === userId)
@@ -80,8 +80,7 @@ export async function listMemories(userId = "local"): Promise<MemoryHit[]> {
     }));
 }
 
-/** Semantic search: embed the query and return the top-k most similar memories. */
-export async function searchMemories(
+async function diskSearchMemories(
   query: string,
   k = 3,
   userId = "local"
@@ -102,12 +101,55 @@ export async function searchMemories(
     .slice(0, k);
 }
 
-export async function deleteMemory(id: string): Promise<void> {
+async function diskDeleteMemory(id: string): Promise<void> {
   const records = await load();
   await persist(records.filter((r) => r.id !== id));
 }
 
-export async function clearMemories(userId = "local"): Promise<void> {
+async function diskClearMemories(userId = "local"): Promise<void> {
   const records = await load();
   await persist(records.filter((r) => r.userId !== userId));
+}
+
+// --- Public API: dispatch to Supabase when configured, else disk fallback. ---
+
+/** Embed and store a piece of the user's writing. */
+export function addMemory(
+  text: string,
+  type: MemoryType,
+  userId = "local"
+): Promise<MemoryRecord> {
+  return isSupabaseConfigured()
+    ? supabaseStore.addMemory(text, type, userId)
+    : diskAddMemory(text, type, userId);
+}
+
+/** All memories for a user, newest first, without embeddings. */
+export function listMemories(userId = "local"): Promise<MemoryHit[]> {
+  return isSupabaseConfigured()
+    ? supabaseStore.listMemories(userId)
+    : diskListMemories(userId);
+}
+
+/** Semantic search: embed the query and return the top-k most similar memories. */
+export function searchMemories(
+  query: string,
+  k = 3,
+  userId = "local"
+): Promise<MemoryHit[]> {
+  return isSupabaseConfigured()
+    ? supabaseStore.searchMemories(query, k, userId)
+    : diskSearchMemories(query, k, userId);
+}
+
+export function deleteMemory(id: string): Promise<void> {
+  return isSupabaseConfigured()
+    ? supabaseStore.deleteMemory(id)
+    : diskDeleteMemory(id);
+}
+
+export function clearMemories(userId = "local"): Promise<void> {
+  return isSupabaseConfigured()
+    ? supabaseStore.clearMemories(userId)
+    : diskClearMemories(userId);
 }
