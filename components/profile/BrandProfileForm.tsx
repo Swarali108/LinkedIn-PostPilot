@@ -28,11 +28,12 @@ export default function BrandProfileForm() {
   const [loaded, setLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Load any saved profile on mount (client-only).
+  // Load any saved profile on mount.
   useEffect(() => {
-    const existing = loadProfile();
-    if (existing) setProfile(existing);
-    setLoaded(true);
+    loadProfile().then((existing) => {
+      if (existing) setProfile(existing);
+      setLoaded(true);
+    });
   }, []);
 
   function update<K extends keyof BrandProfile>(key: K, value: BrandProfile[K]) {
@@ -40,15 +41,15 @@ export default function BrandProfileForm() {
     setSaved(false);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    saveProfile(profile);
+    await saveProfile(profile);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
 
-  function handleReset() {
-    clearProfile();
+  async function handleReset() {
+    await clearProfile();
     setProfile(EMPTY_PROFILE);
     setSaved(false);
   }

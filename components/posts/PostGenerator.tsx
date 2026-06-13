@@ -74,15 +74,16 @@ export default function PostGenerator() {
 
   // Load the saved brand profile on mount and default the tone to theirs.
   useEffect(() => {
-    const saved = loadProfile();
-    if (saved) {
-      setProfile(saved);
-      setForm((f) => ({
-        ...f,
-        tone: saved.defaultTone ?? f.tone,
-        audience: f.audience || saved.audience,
-      }));
-    }
+    loadProfile().then((saved) => {
+      if (saved) {
+        setProfile(saved);
+        setForm((f) => ({
+          ...f,
+          tone: saved.defaultTone ?? f.tone,
+          audience: f.audience || saved.audience,
+        }));
+      }
+    });
   }, []);
 
   const personalized = hasUsefulProfile(profile);
@@ -100,7 +101,7 @@ export default function PostGenerator() {
       if (res.ok) {
         const evalData = data as PostEvaluation;
         setEvaluation(evalData);
-        if (historyId) setHistoryScore(historyId, evalData.overall);
+        if (historyId) void setHistoryScore(historyId, evalData.overall);
       }
     } catch {
       // Scoring is best-effort; ignore failures silently.
@@ -141,13 +142,10 @@ export default function PostGenerator() {
       const post = data as GenerationResult;
       setResult(post);
       // Record in history, then score in the background (don't block rendering).
-      const historyId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-      addHistory({
-        id: historyId,
+      const historyId = await addHistory({
         topic: form.topic,
         postType: form.postType,
         body: post.body,
-        createdAt: new Date().toISOString(),
       });
       void scorePost(post.body, historyId);
     } catch (err) {

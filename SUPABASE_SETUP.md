@@ -57,6 +57,8 @@ both modes — only storage and similarity search move to Postgres. The store
 interface (`lib/memory/store.ts`) dispatches between the disk and Supabase
 backends, so nothing else in the app changes.
 
-The `brand_profiles`, `generation_history`, and `content_calendars` tables are
-created and ready; wiring profile/history off localStorage onto them follows the
-same `isSupabaseConfigured()` dispatch pattern used for memory.
+**Brand memory**, **brand profile**, and **generation history** are all
+Supabase-backed when configured (via `/api/memory`, `/api/profile`, `/api/history`),
+falling back to the local disk/localStorage stores otherwise. The client stores
+probe a `{ configured }` flag from the API and cache it, so no-Supabase mode pays
+no extra round-trips. `content_calendars` is created and ready for the same pattern.

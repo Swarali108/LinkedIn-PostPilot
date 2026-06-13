@@ -17,16 +17,16 @@ export default function PostHistory() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
-    setEntries(listHistory());
+    listHistory().then(setEntries);
   }, []);
 
-  function remove(id: string) {
-    deleteHistory(id);
+  async function remove(id: string) {
+    await deleteHistory(id);
     setEntries((e) => e.filter((x) => x.id !== id));
   }
 
-  function clearAll() {
-    clearHistory();
+  async function clearAll() {
+    await clearHistory();
     setEntries([]);
   }
 

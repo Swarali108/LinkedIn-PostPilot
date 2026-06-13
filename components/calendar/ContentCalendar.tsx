@@ -38,12 +38,13 @@ export default function ContentCalendar() {
 
   // Prefill from the saved brand profile.
   useEffect(() => {
-    const p = loadProfile();
-    if (p) {
-      setIndustry((cur) => cur || p.industry);
-      setInterests((cur) => cur || p.interests);
-      setAudience((cur) => cur || p.audience);
-    }
+    loadProfile().then((p) => {
+      if (p) {
+        setIndustry((cur) => cur || p.industry);
+        setInterests((cur) => cur || p.interests);
+        setAudience((cur) => cur || p.audience);
+      }
+    });
   }, []);
 
   function pillarColor(plan: CalendarPlan, pillar: string): string {

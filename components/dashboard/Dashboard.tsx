@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { BrandProfile, HistoryEntry } from "@/lib/types";
 import { loadProfile } from "@/lib/profile/store";
-import { historyStats, listHistory, type HistoryStats } from "@/lib/history/store";
+import { listHistory, statsFrom, type HistoryStats } from "@/lib/history/store";
 
 const TOOLS = [
   {
@@ -66,9 +66,12 @@ export default function Dashboard() {
   const [memoryCount, setMemoryCount] = useState<number | null>(null);
 
   useEffect(() => {
-    setProfile(loadProfile());
-    setStats(historyStats());
-    setRecent(listHistory().slice(0, 5));
+    (async () => {
+      setProfile(await loadProfile());
+      const entries = await listHistory();
+      setStats(statsFrom(entries));
+      setRecent(entries.slice(0, 5));
+    })();
 
     fetch("/api/memory")
       .then((r) => r.json())
