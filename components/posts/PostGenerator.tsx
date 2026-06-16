@@ -17,6 +17,7 @@ import type {
 import type { AgentStep } from "@/lib/agents/types";
 import { hasUsefulProfile, loadProfile } from "@/lib/profile/store";
 import { addHistory, setHistoryScore } from "@/lib/history/store";
+import VisualImage from "./VisualImage";
 
 type GenerationResult = GeneratedPost & {
   memoryUsed?: MemoryHit[];
@@ -570,16 +571,8 @@ export default function PostGenerator() {
               ))}
             </section>
 
-            {/* Visual prompt */}
-            <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-                Visual prompt
-              </h2>
-              <p className="text-sm text-gray-800">{result.visual.prompt}</p>
-              <p className="mt-2 text-xs text-gray-400">
-                {result.visual.style} · {result.visual.dimensions}
-              </p>
-            </section>
+            {/* Visual (image generated from the prompt) */}
+            <VisualImage visual={result.visual} />
           </>
         )}
       </div>
