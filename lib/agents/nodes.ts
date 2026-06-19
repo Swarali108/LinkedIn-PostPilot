@@ -4,6 +4,7 @@ import { generateHashtags } from "../ai/hashtag-generator";
 import { generateVisualCard } from "../ai/visual-generator";
 import { evaluatePost } from "../ai/evaluator";
 import { retrieveContext } from "../rag/retrieve";
+import { getProvenHashtags } from "../memory/store";
 import type { Agent } from "./types";
 
 /** Agent 0 — RAG: retrieve the user's relevant past posts to imitate their voice. */
@@ -46,7 +47,9 @@ export const hashtagAgent: Agent = {
   name: "hashtag",
   async run(s) {
     if (!s.body) throw new Error("no post body for the hashtag agent");
-    const hashtags = await generateHashtags(s.body, s.input.topic);
+    // Reuse the user's proven (engagement-ranked) hashtags when memory is on.
+    const proven = s.useMemory ? await getProvenHashtags(s.userId) : [];
+    const hashtags = await generateHashtags(s.body, s.input.topic, proven);
     return { hashtags };
   },
   summarize: (p) =>

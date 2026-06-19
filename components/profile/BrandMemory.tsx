@@ -3,9 +3,16 @@
 import { useEffect, useState } from "react";
 import type { MemoryHit } from "@/lib/types";
 
+const inputClass =
+  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-linkedin focus:outline-none focus:ring-1 focus:ring-linkedin";
+
 export default function BrandMemory() {
   const [memories, setMemories] = useState<MemoryHit[]>([]);
   const [text, setText] = useState("");
+  const [hashtags, setHashtags] = useState("");
+  const [likes, setLikes] = useState("");
+  const [impressions, setImpressions] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,11 +42,21 @@ export default function BrandMemory() {
       const res = await fetch("/api/memory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          hashtags: hashtags.trim() || undefined,
+          likes: likes ? Number(likes) : undefined,
+          impressions: impressions ? Number(impressions) : undefined,
+          imageUrl: imageUrl.trim() || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save.");
       setText("");
+      setHashtags("");
+      setLikes("");
+      setImpressions("");
+      setImageUrl("");
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save.");
@@ -61,15 +78,46 @@ export default function BrandMemory() {
       >
         <h2 className="font-semibold text-gray-900">Add a past post</h2>
         <p className="text-sm text-gray-600">
-          Paste posts you&apos;ve written before. PostPilot embeds them and recalls
-          the most relevant ones when you generate — so new posts sound like you.
+          Paste a post you&apos;ve written, plus its hashtags and how it performed.
+          PostPilot learns your voice and what gets engagement — so new posts and
+          hashtags get better over time.
         </p>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={8}
+          rows={6}
           placeholder="Paste a LinkedIn post you wrote…"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-linkedin focus:outline-none focus:ring-1 focus:ring-linkedin"
+          className={inputClass}
+        />
+        <input
+          value={hashtags}
+          onChange={(e) => setHashtags(e.target.value)}
+          placeholder="Hashtags used, e.g. #AI #LLM #BuildInPublic"
+          className={inputClass}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <input
+            type="number"
+            min={0}
+            value={likes}
+            onChange={(e) => setLikes(e.target.value)}
+            placeholder="Likes"
+            className={inputClass}
+          />
+          <input
+            type="number"
+            min={0}
+            value={impressions}
+            onChange={(e) => setImpressions(e.target.value)}
+            placeholder="Impressions"
+            className={inputClass}
+          />
+        </div>
+        <input
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="Image URL (optional)"
+          className={inputClass}
         />
         <button
           type="submit"
@@ -104,9 +152,21 @@ export default function BrandMemory() {
             className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
           >
             <div className="mb-1 flex items-center justify-between">
-              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
-                {m.type === "generated" ? "generated" : "past post"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
+                  {m.type === "generated" ? "generated" : "past post"}
+                </span>
+                {typeof m.likes === "number" && (
+                  <span className="rounded bg-rose-50 px-1.5 py-0.5 text-xs text-rose-600">
+                    ♥ {m.likes}
+                  </span>
+                )}
+                {typeof m.impressions === "number" && (
+                  <span className="rounded bg-sky-50 px-1.5 py-0.5 text-xs text-sky-600">
+                    👁 {m.impressions.toLocaleString()}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => remove(m.id)}
                 className="text-xs text-gray-400 hover:text-red-500"
@@ -114,9 +174,22 @@ export default function BrandMemory() {
                 Delete
               </button>
             </div>
-            <p className="line-clamp-4 whitespace-pre-wrap text-sm text-gray-700">
-              {m.text}
-            </p>
+            <div className="flex gap-3">
+              {m.imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={m.imageUrl}
+                  alt=""
+                  className="h-16 w-16 shrink-0 rounded object-cover"
+                />
+              )}
+              <p className="line-clamp-4 whitespace-pre-wrap text-sm text-gray-700">
+                {m.text}
+              </p>
+            </div>
+            {m.hashtags && (
+              <p className="mt-2 text-xs text-linkedin">{m.hashtags}</p>
+            )}
           </div>
         ))}
       </div>

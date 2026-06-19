@@ -130,8 +130,19 @@ export interface PostEvaluation {
 
 export type MemoryType = "past-post" | "generated";
 
+/** Optional engagement + media metadata captured for a past post, used to learn
+ * what performs and to inform hashtags/visuals. */
+export interface MemoryMeta {
+  /** Hashtags the user actually used (free text, e.g. "#AI #LLM"). */
+  hashtags?: string;
+  likes?: number;
+  impressions?: number;
+  /** URL of the image the user posted with it. */
+  imageUrl?: string;
+}
+
 /** A stored piece of the user's writing, with its embedding, for semantic recall. */
-export interface MemoryRecord {
+export interface MemoryRecord extends MemoryMeta {
   id: string;
   userId: string;
   text: string;
@@ -141,7 +152,7 @@ export interface MemoryRecord {
 }
 
 /** A memory returned from search, with its relevance score. Embedding omitted to keep payloads small. */
-export interface MemoryHit {
+export interface MemoryHit extends MemoryMeta {
   id: string;
   text: string;
   type: MemoryType;

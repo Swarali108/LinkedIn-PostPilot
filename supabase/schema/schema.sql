@@ -14,6 +14,10 @@ create table if not exists memories (
   text        text not null,
   type        text not null default 'past-post',   -- 'past-post' | 'generated'
   embedding   vector(768) not null,
+  hashtags    text,
+  likes       int,
+  impressions int,
+  image_url   text,
   created_at  timestamptz not null default now()
 );
 
@@ -30,11 +34,15 @@ create or replace function match_memories (
   match_count     int  default 3
 )
 returns table (
-  id         uuid,
-  text       text,
-  type       text,
-  created_at timestamptz,
-  similarity float
+  id          uuid,
+  text        text,
+  type        text,
+  created_at  timestamptz,
+  hashtags    text,
+  likes       int,
+  impressions int,
+  image_url   text,
+  similarity  float
 )
 language sql stable
 set search_path = public          -- pin search_path (resolves advisor warning)
@@ -44,6 +52,10 @@ as $$
     m.text,
     m.type,
     m.created_at,
+    m.hashtags,
+    m.likes,
+    m.impressions,
+    m.image_url,
     1 - (m.embedding <=> query_embedding) as similarity
   from memories m
   where m.user_id = match_user_id

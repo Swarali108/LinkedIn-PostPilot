@@ -26,7 +26,14 @@ export async function GET(req: NextRequest) {
 
 // POST /api/memory — add a past post: { text, userId? }
 export async function POST(req: NextRequest) {
-  let body: { text?: string; userId?: string };
+  let body: {
+    text?: string;
+    userId?: string;
+    hashtags?: string;
+    likes?: number;
+    impressions?: number;
+    imageUrl?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -39,13 +46,24 @@ export async function POST(req: NextRequest) {
     );
   }
   try {
-    const record = await addMemory(body.text, "past-post", body.userId || "local");
+    const toNum = (v: unknown) =>
+      typeof v === "number" && Number.isFinite(v) ? v : undefined;
+    const record = await addMemory(body.text, "past-post", body.userId || "local", {
+      hashtags: body.hashtags?.trim() || undefined,
+      likes: toNum(body.likes),
+      impressions: toNum(body.impressions),
+      imageUrl: body.imageUrl?.trim() || undefined,
+    });
     return NextResponse.json({
       memory: {
         id: record.id,
         text: record.text,
         type: record.type,
         createdAt: record.createdAt,
+        hashtags: record.hashtags,
+        likes: record.likes,
+        impressions: record.impressions,
+        imageUrl: record.imageUrl,
         similarity: 1,
       },
     });

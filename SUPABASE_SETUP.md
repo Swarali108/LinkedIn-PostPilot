@@ -26,6 +26,10 @@ tables.
 > Already ran an earlier (384-dim) version of the schema? Run
 > [`supabase/schema/migrate-384-to-768.sql`](supabase/schema/migrate-384-to-768.sql)
 > once to move the `memories` table to 768 dims.
+>
+> Ran the schema before engagement metadata (hashtags/likes/impressions/image)?
+> Run [`supabase/schema/migrate-add-engagement.sql`](supabase/schema/migrate-add-engagement.sql)
+> once to add the columns and update the `match_memories` RPC.
 
 ## 3. Add credentials
 

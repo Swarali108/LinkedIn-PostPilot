@@ -29,16 +29,28 @@ export async function retrieveContext(
   if (hits.length === 0) return { hits: [], block: "" };
 
   const examples = hits
-    .map(
-      (h, i) =>
-        `Example ${i + 1} (similarity ${h.similarity.toFixed(2)}):\n"""\n${h.text.slice(0, 1200)}\n"""`
-    )
+    .map((h, i) => {
+      const perf: string[] = [];
+      if (typeof h.likes === "number") perf.push(`${h.likes} likes`);
+      if (typeof h.impressions === "number")
+        perf.push(`${h.impressions.toLocaleString()} impressions`);
+      const perfNote = perf.length ? ` — performance: ${perf.join(", ")}` : "";
+      return `Example ${i + 1} (relevance ${h.similarity.toFixed(2)}${perfNote}):\n"""\n${h.text.slice(0, 1200)}\n"""`;
+    })
     .join("\n\n");
+
+  // If we know engagement, tell the writer to lean into the higher-performing patterns.
+  const hasPerf = hits.some(
+    (h) => typeof h.likes === "number" || typeof h.impressions === "number"
+  );
+  const perfGuidance = hasPerf
+    ? "\nPay attention to the performance numbers — emulate the structure, tone, and hook style of the HIGHER-performing posts.\n"
+    : "";
 
   const block = `\nHere are the user's own past posts that are most relevant to this topic.
 Study them and MATCH their voice, rhythm, vocabulary, and formatting — but write
 something new. Do not copy them verbatim.
-
+${perfGuidance}
 ${examples}\n`;
 
   return { hits, block };
