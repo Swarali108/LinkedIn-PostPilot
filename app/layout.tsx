@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AppChrome from "@/components/AppChrome";
 
 export const metadata: Metadata = {
   title: "LinkedIn PostPilot",
@@ -14,7 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <AppChrome>{children}</AppChrome>
+      </body>
     </html>
   );
 }
