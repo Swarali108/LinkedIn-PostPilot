@@ -61,12 +61,23 @@ export async function signOut(): Promise<void> {
   clearGuest();
 }
 
-export async function forgotPassword(email: string): Promise<void> {
-  const supabase = createBrowserSupabase();
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${siteBase()}/reset`,
+/**
+ * Direct reset by email — no email link. Sends the email + new password (+ new
+ * username) to the server, which updates the account in the database. The account
+ * id never changes, so the user's posts/memory/history stay intact.
+ */
+export async function resetPasswordDirect(
+  email: string,
+  password: string,
+  username?: string
+): Promise<void> {
+  const res = await fetch("/api/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim(), password, username }),
   });
-  if (error) throw new Error(error.message);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Reset failed.");
 }
 
 export async function setNewPassword(password: string): Promise<void> {

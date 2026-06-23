@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   continueAsGuest,
-  forgotPassword,
+  resetPasswordDirect,
   signIn,
   signUp,
 } from "@/lib/auth-client";
@@ -40,8 +40,10 @@ export default function AuthForm({ next }: { next: string }) {
           window.location.href = dest;
         }
       } else {
-        await forgotPassword(email);
-        setNotice("If that email has an account, a reset link is on its way.");
+        await resetPasswordDirect(email, password, username);
+        setNotice("Password updated! Log in with your new details.");
+        setMode("login");
+        setPassword("");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -84,44 +86,48 @@ export default function AuthForm({ next }: { next: string }) {
           </div>
         )}
 
+        {mode === "forgot" && (
+          <p className="text-sm text-gray-500">
+            Enter your email and a new password. Your saved posts &amp; memory stay
+            intact.
+          </p>
+        )}
+
         <form onSubmit={submit} className="space-y-3">
-          {mode !== "forgot" && (
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username"
-              autoFocus
-              className={input}
-            />
-          )}
           {(mode === "signup" || mode === "forgot") && (
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email (for password reset)"
+              placeholder={mode === "forgot" ? "Your account email" : "Email (for reset)"}
+              autoFocus={mode === "forgot"}
               className={input}
             />
           )}
-          {mode !== "forgot" && (
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className={`${input} pr-10`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? "🙈" : "👁"}
-              </button>
-            </div>
-          )}
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder={mode === "forgot" ? "New username (optional)" : "Username"}
+            autoFocus={mode !== "forgot"}
+            className={input}
+          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={mode === "forgot" ? "New password" : "Password"}
+              className={`${input} pr-10`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? "🙈" : "👁"}
+            </button>
+          </div>
 
           <button
             type="submit"
@@ -134,7 +140,7 @@ export default function AuthForm({ next }: { next: string }) {
               ? "Log in"
               : mode === "signup"
               ? "Create account"
-              : "Send reset link"}
+              : "Reset password"}
           </button>
         </form>
 
