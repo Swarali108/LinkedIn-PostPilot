@@ -7,7 +7,7 @@ import LogoutButton from "./LogoutButton";
 import { loadProfile } from "@/lib/profile/store";
 
 // Pages that render WITHOUT the dashboard shell (full-bleed).
-const BARE_PATHS = ["/", "/login"];
+const BARE_PATHS = ["/", "/login", "/reset"];
 
 export default function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

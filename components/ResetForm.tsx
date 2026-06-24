@@ -1,44 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
-import { setNewPassword, signOut, updateUsername } from "@/lib/auth-client";
+import { useState } from "react";
+import { resetPasswordDirect } from "@/lib/auth-client";
 
+/**
+ * Direct reset page. Works regardless of how the user got here (old email link
+ * or the "Forgot password?" link) — it just takes email + new password (+ new
+ * username) and updates the account in the database. No recovery token needed.
+ */
 export default function ResetForm() {
-  const [checking, setChecking] = useState(true);
-  const [ready, setReady] = useState(false); // recovery session established
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-
-  // The email link drops a recovery token in the URL; the Supabase client picks
-  // it up and fires PASSWORD_RECOVERY (or a session already exists).
-  useEffect(() => {
-    const supabase = createBrowserSupabase();
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setReady(true);
-        setChecking(false);
-      }
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-      setChecking(false);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await setNewPassword(password);
-      if (username.trim()) await updateUsername(username);
-      // End the recovery session so they log in fresh with the new credentials.
-      await signOut();
+      await resetPasswordDirect(email, password, username);
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reset failed.");
@@ -53,24 +37,15 @@ export default function ResetForm() {
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-4 rounded-3xl border border-gray-200 bg-white p-8 shadow-soft">
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linkedin text-lg font-bold text-white">
+            P
+          </span>
+          <span className="text-lg font-bold text-gray-900">PostPilot</span>
+        </div>
         <h1 className="text-xl font-semibold text-gray-900">Reset your account</h1>
 
-        {checking ? (
-          <p className="text-sm text-gray-500">Verifying your reset link…</p>
-        ) : !ready ? (
-          <>
-            <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              This reset link is invalid or has expired. Request a new one from the
-              login page.
-            </p>
-            <a
-              href="/login"
-              className="block rounded-xl border border-gray-300 px-4 py-2.5 text-center font-semibold text-gray-700 hover:border-linkedin hover:text-linkedin"
-            >
-              Back to log in
-            </a>
-          </>
-        ) : done ? (
+        {done ? (
           <>
             <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
               Updated! Your posts &amp; memory are intact — log in with your new
@@ -84,37 +59,63 @@ export default function ResetForm() {
             </a>
           </>
         ) : (
-          <form onSubmit={submit} className="space-y-3">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="New password"
-              autoFocus
-              className={input}
-            />
-            <input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="New username (optional)"
-              className={input}
-            />
-            <button
-              type="submit"
-              disabled={loading || password.length < 6}
-              className="w-full rounded-xl bg-linkedin px-4 py-2.5 font-semibold text-white transition hover:bg-linkedin-dark disabled:opacity-60"
-            >
-              {loading ? "Updating…" : "Update account"}
-            </button>
-            {error && (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
-                {error}
-              </p>
-            )}
-            <p className="text-center text-[11px] text-gray-400">
-              Leave username blank to keep your current one.
+          <>
+            <p className="text-sm text-gray-500">
+              Enter your account email and a new password. Your saved data stays
+              intact — your email is the anchor.
             </p>
-          </form>
+            <form onSubmit={submit} className="space-y-3">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Your account email"
+                autoFocus
+                className={input}
+              />
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="New username (optional)"
+                className={input}
+              />
+              <div className="relative">
+                <input
+                  type={show ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="New password"
+                  className={`${input} pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShow((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={show ? "Hide password" : "Show password"}
+                >
+                  {show ? "🙈" : "👁"}
+                </button>
+              </div>
+              <button
+                type="submit"
+                disabled={loading || password.length < 6 || !email}
+                className="w-full rounded-xl bg-linkedin px-4 py-2.5 font-semibold text-white transition hover:bg-linkedin-dark disabled:opacity-60"
+              >
+                {loading ? "Updating…" : "Reset password"}
+              </button>
+              {error && (
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+                  {error}
+                </p>
+              )}
+            </form>
+            <a
+              href="/"
+              className="block text-center text-xs text-gray-400 hover:text-linkedin"
+            >
+              ← Back to log in
+            </a>
+          </>
         )}
       </div>
     </main>
