@@ -15,6 +15,7 @@ function scoreColor(score?: number): string {
 export default function PostHistory() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     listHistory().then(setEntries);
@@ -57,12 +58,18 @@ export default function PostHistory() {
           Clear all
         </button>
       </div>
-      {entries.map((e) => (
+      {entries.map((e) => {
+        const open = openId === e.id;
+        return (
         <div
           key={e.id}
-          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"
+          className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-linkedin/40"
         >
-          <div className="mb-2 flex items-start justify-between gap-4">
+          <button
+            type="button"
+            onClick={() => setOpenId(open ? null : e.id)}
+            className="flex w-full items-start justify-between gap-4 text-left"
+          >
             <div>
               <h3 className="font-semibold text-gray-900">{e.topic}</h3>
               <p className="text-xs text-gray-400">
@@ -75,11 +82,19 @@ export default function PostHistory() {
             >
               {typeof e.score === "number" ? e.score : "—"}
             </span>
-          </div>
-          <p className="line-clamp-4 whitespace-pre-wrap text-sm text-gray-700">
+          </button>
+          <p
+            className={`mt-2 whitespace-pre-wrap text-sm text-gray-700 ${open ? "" : "line-clamp-4"}`}
+          >
             {e.body}
           </p>
           <div className="mt-3 flex items-center gap-4">
+            <button
+              onClick={() => setOpenId(open ? null : e.id)}
+              className="text-sm font-medium text-linkedin hover:underline"
+            >
+              {open ? "Show less" : "View full post"}
+            </button>
             <button
               onClick={() => copy(e)}
               className="text-sm font-medium text-linkedin hover:underline"
@@ -94,7 +109,8 @@ export default function PostHistory() {
             </button>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

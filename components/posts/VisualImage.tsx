@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { VisualCard } from "@/lib/types";
 
 /**
- * Post visual. Default is an instant template-rendered card (/api/visual-image).
- * A button generates a richer, AI-designed infographic via OpenRouter
- * (/api/visual-ai) on demand — only spending credits when the user asks.
+ * Post visual. An instant template-rendered card (/api/visual-image) shows first,
+ * then a richer AI-designed infographic is generated automatically in the
+ * background (/api/visual-ai) and swapped in when ready. The user can regenerate
+ * or fall back to the simple card.
  */
 
 // Unicode-safe base64 (emoji-friendly), matching the route decoder.
@@ -26,10 +27,11 @@ export default function VisualImage({ visual }: { visual: VisualCard }) {
   const [aiImage, setAiImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useSimple, setUseSimple] = useState(false);
 
-  const shown = aiImage ?? cardUrl;
+  const shown = aiImage && !useSimple ? aiImage : cardUrl;
 
-  async function generateAi() {
+  async function runGenerate(signal?: { cancelled: boolean }) {
     setLoading(true);
     setError(null);
     try {
@@ -40,13 +42,26 @@ export default function VisualImage({ visual }: { visual: VisualCard }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Image generation failed.");
-      setAiImage(data.image as string);
+      if (!signal?.cancelled) setAiImage(data.image as string);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Image generation failed.");
+      if (!signal?.cancelled)
+        setError(err instanceof Error ? err.message : "Image generation failed.");
     } finally {
-      setLoading(false);
+      if (!signal?.cancelled) setLoading(false);
     }
   }
+
+  // Auto-design the image whenever a new post's visual arrives.
+  useEffect(() => {
+    const signal = { cancelled: false };
+    setAiImage(null);
+    setUseSimple(false);
+    runGenerate(signal);
+    return () => {
+      signal.cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visual]);
 
   return (
     <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -56,11 +71,14 @@ export default function VisualImage({ visual }: { visual: VisualCard }) {
         </h2>
         <div className="flex items-center gap-2">
           <button
-            onClick={generateAi}
+            onClick={() => {
+              setUseSimple(false);
+              runGenerate();
+            }}
             disabled={loading}
             className="rounded-lg bg-gradient-to-r from-violet-600 to-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
-            {loading ? "Designing…" : aiImage ? "↻ Regenerate AI" : "✨ Generate AI image"}
+            {loading ? "Designing…" : "↻ Regenerate"}
           </button>
           <a
             href={shown}
@@ -75,7 +93,7 @@ export default function VisualImage({ visual }: { visual: VisualCard }) {
       <div className="relative overflow-hidden rounded-lg border border-gray-100">
         {loading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 text-sm font-medium text-gray-600 backdrop-blur-sm">
-            Designing your image… (~10–20s)
+            Designing your image…
           </div>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -86,16 +104,30 @@ export default function VisualImage({ visual }: { visual: VisualCard }) {
         <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
       )}
       <p className="mt-2 text-xs text-gray-400">
-        {aiImage
-          ? "AI-designed infographic (OpenRouter)"
-          : `Template card · tap “Generate AI image” for a designed version`}
-        {aiImage && (
-          <button
-            onClick={() => setAiImage(null)}
-            className="ml-2 text-linkedin hover:underline"
-          >
-            use simple card
-          </button>
+        {aiImage && !useSimple ? (
+          <>
+            AI-designed infographic
+            <button
+              onClick={() => setUseSimple(true)}
+              className="ml-2 text-linkedin hover:underline"
+            >
+              use simple card
+            </button>
+          </>
+        ) : loading ? (
+          "Designing a custom infographic…"
+        ) : (
+          <>
+            Template card
+            {aiImage && (
+              <button
+                onClick={() => setUseSimple(false)}
+                className="ml-2 text-linkedin hover:underline"
+              >
+                show AI image
+              </button>
+            )}
+          </>
         )}
       </p>
     </section>
