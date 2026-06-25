@@ -3,29 +3,44 @@
 @tailwind utilities;
 
 :root {
-  --foreground: #1e293b;
+  --foreground: #0f172a;
 }
 
 body {
-  /* Soft blue-grey → white wash for a calm, "pinteresty" feel. */
-  background: linear-gradient(180deg, #f6f9fe 0%, #eef2f9 60%, #f6f9fe 100%);
-  background-attachment: fixed;
+  /* Calm, flat premium-SaaS canvas — blue-grey-white only. */
+  background: #f8fafc;
   color: var(--foreground);
   min-height: 100vh;
+  font-feature-settings: "cv11", "ss01";
 }
 
-/* Gentle, rounded scrollbar to match the soft aesthetic. */
+/* Thin, subtle scrollbar to match the minimal aesthetic. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c7d2e4 transparent;
+  scrollbar-color: #cbd5e1 transparent;
 }
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #c7d2e4;
+  background: #cbd5e1;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
+}
+
+/* Soft hover-tooltip used in the sidebar. */
+@keyframes pp-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+.pp-tip {
+  animation: pp-tip-in 0.12s ease-out;
 }

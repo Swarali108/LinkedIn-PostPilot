@@ -6,21 +6,33 @@ module.exports = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
       colors: {
-        // Friendlier, softer brand blue (kept the "linkedin" name for continuity).
-        linkedin: {
-          DEFAULT: "#2563eb",
-          dark: "#1d4ed8",
-          light: "#60a5fa",
+        // Premium SaaS palette — blue / grey / white only.
+        brand: {
+          DEFAULT: "#2563EB",
+          dark: "#1D4ED8",
+          light: "#3B82F6",
+          soft: "#DBEAFE", // secondary / tints
+          wash: "#EFF6FF",
         },
-        mist: {
-          50: "#f6f9fe",
-          100: "#eef3fb",
-          200: "#e2e9f5",
+        ink: {
+          DEFAULT: "#0F172A", // primary text
+          muted: "#64748B", // muted text
+        },
+        canvas: "#F8FAFC", // app background
+        // Back-compat alias so existing `linkedin` classes keep working.
+        linkedin: {
+          DEFAULT: "#2563EB",
+          dark: "#1D4ED8",
+          light: "#3B82F6",
         },
       },
       boxShadow: {
-        soft: "0 6px 24px -12px rgba(37, 99, 235, 0.18)",
+        soft: "0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.10)",
+        lift: "0 2px 4px rgba(15, 23, 42, 0.05), 0 16px 40px -16px rgba(37, 99, 235, 0.18)",
       },
       borderRadius: {
         xl: "0.9rem",

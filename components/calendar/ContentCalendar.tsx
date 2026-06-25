@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { CalendarPlan, PlannedPost } from "@/lib/types";
 import { loadProfile } from "@/lib/profile/store";
+import { saveCalendar } from "@/lib/calendar/store";
 
 const PILLAR_COLORS = [
   "bg-rose-50 text-rose-600",
@@ -76,6 +77,7 @@ export default function ContentCalendar() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to generate calendar.");
       setPlan(data as CalendarPlan);
+      saveCalendar(data as CalendarPlan);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
