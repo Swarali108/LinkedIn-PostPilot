@@ -10,11 +10,12 @@ import {
   Sparkles,
   FileText,
   Hash,
+  Rocket,
 } from "lucide-react";
 import type { BrandProfile, HistoryEntry } from "@/lib/types";
 import { loadProfile } from "@/lib/profile/store";
 import { listHistory } from "@/lib/history/store";
-import { computeScores, type BrandScore } from "@/lib/analytics/scores";
+import { computeScores, brandTips, type BrandScore } from "@/lib/analytics/scores";
 import DashboardCalendar from "./DashboardCalendar";
 
 function greetingWord(): string {
@@ -85,6 +86,10 @@ export default function Dashboard() {
 
   const firstName = (profile?.name || "").split(/\s+/)[0] || "there";
   const scores = useMemo(() => computeScores(entries, profile), [entries, profile]);
+  const tips = useMemo(
+    () => brandTips(entries, profile, scores),
+    [entries, profile, scores]
+  );
   const recent = entries.slice(0, 4);
 
   const topicChips = useMemo(() => {
@@ -250,6 +255,32 @@ export default function Dashboard() {
           {scores.map((s, i) => (
             <ScoreCard key={s.key} score={s} featured={i === 0} />
           ))}
+        </div>
+
+        {/* Tips to improve brand strength */}
+        <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-ink">
+            <Rocket className="h-[18px] w-[18px] text-brand" /> Boost your Brand Strength
+          </h3>
+          <ul className="mt-4 space-y-2.5">
+            {tips.map((t, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5"
+              >
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 text-sm text-ink">{t.text}</span>
+                <Link
+                  href={t.href}
+                  className="shrink-0 rounded-lg bg-brand-wash px-3 py-1.5 text-xs font-semibold text-brand transition hover:bg-brand-soft"
+                >
+                  {t.cta}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
     </div>

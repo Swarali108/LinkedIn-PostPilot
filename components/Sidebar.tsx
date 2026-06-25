@@ -93,22 +93,22 @@ const GROUPS: Group[] = [
     heading: "Analytics",
     items: [
       {
+        href: "/top-posts",
         label: "Top Posts",
         icon: TrendingUp,
-        desc: "See which posts performed best",
-        soon: true,
+        desc: "Your highest-scoring posts, ranked by reach",
       },
       {
+        href: "/engagement",
         label: "Engagement",
         icon: Heart,
-        desc: "Track likes, comments and reach over time",
-        soon: true,
+        desc: "Likes, impressions and hashtags from your posts",
       },
       {
+        href: "/insights",
         label: "Insights",
         icon: Sparkles,
         desc: "AI insights on what's working for your brand",
-        soon: true,
       },
     ],
   },

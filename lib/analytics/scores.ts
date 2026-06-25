@@ -96,3 +96,84 @@ export function computeScores(
     },
   ];
 }
+
+export interface BrandTip {
+  text: string;
+  cta: string;
+  href: string;
+}
+
+/** Actionable, prioritized suggestions to raise the user's Brand Strength. */
+export function brandTips(
+  entries: HistoryEntry[],
+  profile: BrandProfile | null,
+  scores: BrandScore[]
+): BrandTip[] {
+  const by = Object.fromEntries(scores.map((s) => [s.key, s.value])) as Record<
+    string,
+    number
+  >;
+  const tips: BrandTip[] = [];
+
+  // Profile completeness has the biggest leverage on Brand Strength.
+  const fields = profile
+    ? [
+        profile.headline,
+        profile.industry,
+        profile.interests,
+        profile.audience,
+        profile.voiceNotes,
+      ]
+    : [];
+  const missing = fields.filter((f) => !f || !f.trim()).length;
+  if (!profile || missing >= 2) {
+    tips.push({
+      text: "Complete your Brand Profile — voice, audience and expertise sharpen every post and lift your score the most.",
+      cta: "Complete profile",
+      href: "/brand-profile",
+    });
+  }
+
+  if ((by.consistency ?? 0) < 75) {
+    tips.push({
+      text: "Post at least once a week for the next month — consistency compounds your reach.",
+      cta: "Plan a calendar",
+      href: "/content-calendar",
+    });
+  }
+
+  if ((by.frequency ?? 0) < 70) {
+    tips.push({
+      text: "Aim for ~3 posts/week. Generate one now to build momentum.",
+      cta: "Write a post",
+      href: "/post-generator",
+    });
+  }
+
+  if ((by.authority ?? 0) < 75) {
+    tips.push({
+      text: "Push for higher quality — regenerate hooks and target a reach score above 80.",
+      cta: "Improve a post",
+      href: "/post-generator",
+    });
+  }
+
+  // Feed brand memory so RAG can echo your real voice.
+  if (entries.length > 0 && entries.length < 5) {
+    tips.push({
+      text: "Add a few of your best past posts to Brand Memory so new posts sound more like you.",
+      cta: "Add memories",
+      href: "/brand-memory",
+    });
+  }
+
+  if (tips.length === 0) {
+    tips.push({
+      text: "Strong brand! Keep your streak alive with a fresh post this week.",
+      cta: "Write a post",
+      href: "/post-generator",
+    });
+  }
+
+  return tips.slice(0, 4);
+}
