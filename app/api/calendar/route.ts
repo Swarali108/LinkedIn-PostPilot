@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateCalendar, type CalendarParams } from "@/lib/ai/calendar-generator";
 import { describeAiError } from "@/lib/ai/llm";
+import { guard, cap, LIMITS } from "@/lib/api-guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const limited = await guard(req, "calendar", LIMITS.generate);
+  if (limited) return limited;
+
   let body: Partial<CalendarParams>;
   try {
     body = await req.json();
@@ -26,9 +30,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const plan = await generateCalendar({
-      industry: body.industry,
-      interests: body.interests,
-      audience: body.audience,
+      industry: cap(body.industry, 200),
+      interests: cap(body.interests, 500),
+      audience: cap(body.audience, 300),
       brandProfile: body.brandProfile,
       durationWeeks,
       postsPerWeek,

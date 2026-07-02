@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateImage, describeAiError } from "@/lib/ai/llm";
+import { guard, LIMITS } from "@/lib/api-guard";
 import type { VisualCard } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -35,6 +36,9 @@ Make it look hand-designed and scroll-stopping.`;
 }
 
 export async function POST(req: NextRequest) {
+  const limited = await guard(req, "visual-ai", LIMITS.image);
+  if (limited) return limited;
+
   let body: { visual?: VisualCard };
   try {
     body = await req.json();
@@ -45,8 +49,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing visual spec." }, { status: 400 });
   }
 
+  // Bound the card so a crafted spec can't balloon the image prompt.
+  const v = body.visual;
+  const card: VisualCard = {
+    ...v,
+    title: String(v.title).slice(0, 120),
+    subtitle: v.subtitle ? String(v.subtitle).slice(0, 160) : v.subtitle,
+    quote: v.quote ? String(v.quote).slice(0, 280) : v.quote,
+    points: Array.isArray(v.points)
+      ? v.points.slice(0, 8).map((p) => ({ ...p, text: String(p.text).slice(0, 120) }))
+      : v.points,
+  };
+
   try {
-    const image = await generateImage(buildPrompt(body.visual));
+    const image = await generateImage(buildPrompt(card));
     return NextResponse.json({ image });
   } catch (err) {
     const { message, status } = describeAiError(err);

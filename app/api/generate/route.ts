@@ -4,6 +4,7 @@ import { runPipeline } from "@/lib/agents/orchestrator";
 import { CONTENT_PIPELINE } from "@/lib/agents/nodes";
 import { describeAiError } from "@/lib/ai/llm";
 import { currentUserId } from "@/lib/user-context";
+import { guard, cap, LIMITS } from "@/lib/api-guard";
 import type { AgentState, AgentStep } from "@/lib/agents/types";
 import type { GenerationInput } from "@/lib/types";
 
@@ -25,6 +26,9 @@ function isValid(input: GenerateBody): input is GenerateBody & GenerationInput {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = await guard(req, "generate", LIMITS.generate);
+  if (limited) return limited;
+
   let input: GenerateBody;
   try {
     input = await req.json();
@@ -38,6 +42,11 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  // Defensively cap free-text so an oversized request can't inflate token cost.
+  input.topic = cap(input.topic, 400);
+  if (input.context !== undefined) input.context = cap(input.context, 2000);
+  if (input.audience !== undefined) input.audience = cap(input.audience, 300);
 
   // Partition key comes from the session, never the client. Guests (no session)
   // can generate but get no persistent memory (retrieval/save are off).

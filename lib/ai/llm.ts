@@ -17,8 +17,10 @@ if (!apiKey) {
   );
 }
 
-// Sensible, stable defaults. Override per task with the MODEL_* vars.
-const STRONG = process.env.OPENROUTER_MODEL || "openai/gpt-4o";
+// Cheap, capable defaults so a missing env var can never fall back to a costly
+// model and drain the balance. gpt-4o-mini ≈ $0.15/$0.60 per 1M tokens.
+// Override per task with the MODEL_* vars for higher quality.
+const STRONG = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 const CHEAP = process.env.OPENROUTER_MODEL_CHEAP || "openai/gpt-4o-mini";
 
 /** Which model each task uses (env-overridable). */
@@ -32,9 +34,10 @@ export const Models = {
   calendar: process.env.MODEL_CALENDAR || CHEAP,
 } as const;
 
-// Image-generation model (Nano Banana Pro is excellent at designed, text-legible
-// infographics). Switch to google/gemini-2.5-flash-image for cheaper output.
-export const IMAGE_MODEL = process.env.MODEL_IMAGE || "google/gemini-3-pro-image";
+// Image-generation model. Default to the fast, cheap flash image model
+// (~$0.003/image, ~8s — safe under the 60s limit). Set MODEL_IMAGE to
+// google/gemini-3-pro-image for max quality (pricier + ~45s).
+export const IMAGE_MODEL = process.env.MODEL_IMAGE || "google/gemini-2.5-flash-image";
 
 let client: OpenAI | null = null;
 

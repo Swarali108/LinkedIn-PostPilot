@@ -3,6 +3,7 @@ import { generatePost } from "@/lib/ai/content-generator";
 import { retrieveContext } from "@/lib/rag/retrieve";
 import { describeAiError } from "@/lib/ai/llm";
 import { currentUserId } from "@/lib/user-context";
+import { guard, cap, LIMITS } from "@/lib/api-guard";
 import type { GenerationInput, Hook } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -26,6 +27,9 @@ function isValid(b: RewriteBody): b is RewriteBody & GenerationInput & { hook: H
  * topic-driven and don't need regenerating.
  */
 export async function POST(req: NextRequest) {
+  const limited = await guard(req, "rewrite", LIMITS.generate);
+  if (limited) return limited;
+
   let body: RewriteBody;
   try {
     body = await req.json();
@@ -39,6 +43,9 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  body.topic = cap(body.topic, 400);
+  if (body.context !== undefined) body.context = cap(body.context, 2000);
 
   try {
     const userId = await currentUserId();
