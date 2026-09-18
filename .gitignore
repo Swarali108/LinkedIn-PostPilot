@@ -37,3 +37,9 @@ next-env.d.ts
 # local brand-memory vector store (user data) + model cache
 /data/memory.json
 /.cache
+
+# personal notes / learning material — never pushed
+/personal/
+
+# local agent/editor state
+/.claude/
