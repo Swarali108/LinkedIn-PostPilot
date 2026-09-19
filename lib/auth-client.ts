@@ -62,22 +62,35 @@ export async function signOut(): Promise<void> {
 }
 
 /**
- * Direct reset by email — no email link. Sends the email + new password (+ new
- * username) to the server, which updates the account in the database. The account
- * id never changes, so the user's posts/memory/history stay intact.
+ * Step 1 of password recovery: email the account owner a one-time reset link.
+ *
+ * SECURITY: proof of email ownership is what authorizes a reset. We never change
+ * an account from an unauthenticated request — knowing someone's address must not
+ * be enough to take over their account. The link lands on /auth/confirm, which
+ * verifies the token server-side and forwards to /reset holding a real session.
+ *
+ * Resolves the same way for unknown addresses, so this can't be used to probe
+ * which emails have accounts.
  */
-export async function resetPasswordDirect(
-  email: string,
-  password: string,
-  username?: string
-): Promise<void> {
-  const res = await fetch("/api/reset-password", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: email.trim(), password, username }),
+export async function requestPasswordReset(email: string): Promise<void> {
+  const supabase = createBrowserSupabase();
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: `${siteBase()}/auth/confirm?next=/reset`,
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Reset failed.");
+  // Surface real faults (e.g. rate limiting) but never "no such user".
+  if (error && !/user not found|not found/i.test(error.message)) {
+    throw new Error(error.message);
+  }
+}
+
+/** Is this username already taken? Checked before a reset so we never change the
+ *  password and then fail on the username, leaving a half-applied reset. */
+export async function isUsernameTaken(username: string): Promise<boolean> {
+  const supabase = createBrowserSupabase();
+  const { data } = await supabase.rpc("username_taken", {
+    uname: username.trim().toLowerCase(),
+  });
+  return Boolean(data);
 }
 
 export async function setNewPassword(password: string): Promise<void> {

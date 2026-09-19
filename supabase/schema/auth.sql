@@ -15,8 +15,12 @@ drop policy if exists "own profile read" on profiles;
 create policy "own profile read" on profiles
   for select using (auth.uid() = user_id);
 drop policy if exists "own profile update" on profiles;
+-- `using` picks which rows you may update; `with check` validates the row you
+-- write. Without the latter a user could reassign their row's user_id to someone
+-- else's, so both clauses are required.
 create policy "own profile update" on profiles
-  for update using (auth.uid() = user_id);
+  for update using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
 -- On signup, auto-create the profile from the username passed in user metadata.
 create or replace function handle_new_user()

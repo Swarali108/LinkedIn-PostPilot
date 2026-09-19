@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   continueAsGuest,
-  resetPasswordDirect,
+  requestPasswordReset,
   signIn,
   signUp,
 } from "@/lib/auth-client";
@@ -40,10 +40,13 @@ export default function AuthForm({ next }: { next: string }) {
           window.location.href = dest;
         }
       } else {
-        await resetPasswordDirect(email, password, username);
-        setNotice("Password updated! Log in with your new details.");
-        setMode("login");
-        setPassword("");
+        // Recovery is authorized by opening the emailed link — never by simply
+        // knowing the address. Same message either way, so this can't be used to
+        // discover which emails have accounts.
+        await requestPasswordReset(email);
+        setNotice(
+          "If an account exists for that email, a reset link is on its way. Open it to choose a new password."
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -88,8 +91,8 @@ export default function AuthForm({ next }: { next: string }) {
 
         {mode === "forgot" && (
           <p className="text-sm text-gray-500">
-            Enter your email and a new password. Your saved posts &amp; memory stay
-            intact.
+            Enter your account email and we&apos;ll send you a reset link. For your
+            security, a password can only be changed from that link.
           </p>
         )}
 
@@ -99,35 +102,39 @@ export default function AuthForm({ next }: { next: string }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={mode === "forgot" ? "Your account email" : "Email (for reset)"}
+              placeholder={mode === "forgot" ? "Your account email" : "Email"}
               autoFocus={mode === "forgot"}
               className={input}
             />
           )}
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder={mode === "forgot" ? "New username (optional)" : "Username"}
-            autoFocus={mode !== "forgot"}
-            className={input}
-          />
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === "forgot" ? "New password" : "Password"}
-              className={`${input} pr-10`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? "🙈" : "👁"}
-            </button>
-          </div>
+          {mode !== "forgot" && (
+            <>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username"
+                autoFocus
+                className={input}
+              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className={`${input} pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
+              </div>
+            </>
+          )}
 
           <button
             type="submit"
@@ -140,7 +147,7 @@ export default function AuthForm({ next }: { next: string }) {
               ? "Log in"
               : mode === "signup"
               ? "Create account"
-              : "Reset password"}
+              : "Send reset link"}
           </button>
         </form>
 
