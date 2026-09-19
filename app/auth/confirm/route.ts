@@ -65,5 +65,11 @@ export async function GET(req: NextRequest) {
     if (!error) return NextResponse.redirect(`${origin}${dest}`);
   }
 
-  return NextResponse.redirect(`${origin}/login?error=invalid_or_expired_link`);
+  // Recovery links are single-use and short-lived. Send a spent one back to
+  // /reset (which offers a fresh link) rather than to /login, where there is
+  // nothing the user can do about it.
+  const failed = dest.startsWith("/reset")
+    ? "/reset?error=expired"
+    : "/login?error=invalid_or_expired_link";
+  return NextResponse.redirect(`${origin}${failed}`);
 }
