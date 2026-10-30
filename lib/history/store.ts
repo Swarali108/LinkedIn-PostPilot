@@ -3,7 +3,7 @@ import { getStorageMode } from "../storage-mode";
 
 /**
  * Generation history (Phase 7).
- *   - Logged-in users → server (Supabase, scoped to their account).
+ *   - Logged-in users → server (Postgres, scoped to their account).
  *   - Guests → sessionStorage (session-only).
  */
 

@@ -2,27 +2,26 @@
 
 import { useEffect, useState } from "react";
 import {
-  isUsernameTaken,
+  applyPasswordReset,
+  lookupResetToken,
   requestPasswordReset,
-  setNewPassword,
-  updateUsername,
 } from "@/lib/auth-client";
-import { createBrowserSupabase } from "@/lib/supabase/browser";
 
 /**
  * Password recovery, gated on proof of email ownership.
  *
- * Arriving here with a valid recovery session (via the emailed link → /auth/confirm)
- * shows the username + new-password form — no email field, because the session
- * already proves who you are, and the account it updates is the one the link was
- * sent to. Arriving without a session shows only "send me a link": an
- * unauthenticated visitor can never change an account, so knowing someone's email
- * is not enough to take it over.
+ * Arriving here with a valid one-time token (the emailed link redirects to
+ * /reset?token=…) shows the username + new-password form — no email field,
+ * because the token already proves who you are, and the account it updates is
+ * the one the link was sent to. Arriving without one shows only "send me a
+ * link": an unauthenticated visitor can never change an account, so knowing
+ * someone's email is not enough to take it over.
  */
 type Stage = "checking" | "ready" | "needs-link";
 
 export default function ResetForm() {
   const [stage, setStage] = useState<Stage>("checking");
+  const [token, setToken] = useState("");
 
   // "needs-link" state
   const [email, setEmail] = useState("");
@@ -40,48 +39,32 @@ export default function ResetForm() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  // Flag a spent/expired link, from either the query string (our own redirect)
-  // or the URL hash (Supabase reports failures there).
+  // The emailed link redirects here with ?token=… (valid) or ?error=… (spent or
+  // expired). Look the token up so we can show which account it's for.
   useEffect(() => {
     const qs = new URLSearchParams(window.location.search);
-    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    if (qs.get("error") || hash.get("error")) setLinkExpired(true);
-  }, []);
-
-  // A recovery session is set by /auth/confirm before we land here. Supabase may
-  // also finish processing a token slightly after mount, so we listen too.
-  useEffect(() => {
-    const supabase = createBrowserSupabase();
-    let cancelled = false;
-
-    async function adopt(userId: string, mail: string) {
-      setAccountEmail(mail);
-      // Prefill the current username so it's clear what's being changed.
-      const { data } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!cancelled && data?.username) setUsername(data.username);
-      if (!cancelled) setStage("ready");
+    const t = qs.get("token");
+    if (qs.get("error")) setLinkExpired(true);
+    if (!t) {
+      setStage("needs-link");
+      return;
     }
-
-    supabase.auth.getUser().then(({ data }) => {
+    let cancelled = false;
+    lookupResetToken(t).then((acct) => {
       if (cancelled) return;
-      if (data.user) adopt(data.user.id, data.user.email ?? "");
-      else setStage("needs-link");
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled || !session?.user) return;
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        adopt(session.user.id, session.user.email ?? "");
+      if (!acct) {
+        setLinkExpired(true);
+        setStage("needs-link");
+        return;
       }
+      setToken(t);
+      setAccountEmail(acct.email);
+      // Prefill the current username so it's clear what's being changed.
+      setUsername(acct.username);
+      setStage("ready");
     });
-
     return () => {
       cancelled = true;
-      sub.subscription.unsubscribe();
     };
   }, []);
 
@@ -105,34 +88,10 @@ export default function ResetForm() {
     setError(null);
     try {
       if (password !== confirm) throw new Error("The two passwords don't match.");
-
-      const uname = username.trim().toLowerCase();
-      // Check availability first — otherwise a taken username would leave the
-      // password already changed and the reset half-applied.
-      if (uname) {
-        if (!/^[a-z0-9_.-]{3,30}$/.test(uname)) {
-          throw new Error("Username must be 3–30 chars (letters, numbers, _ . -).");
-        }
-        if (await isUsernameTaken(uname)) {
-          // Their own unchanged username also "exists" — only a real clash matters.
-          const supabase = createBrowserSupabase();
-          const { data: user } = await supabase.auth.getUser();
-          const { data: mine } = await supabase
-            .from("profiles")
-            .select("username")
-            .eq("user_id", user.user?.id ?? "")
-            .maybeSingle();
-          if (mine?.username !== uname) {
-            throw new Error("That username is already taken.");
-          }
-        }
-      }
-
-      await setNewPassword(password);
-      if (uname) await updateUsername(uname);
-
-      // End the recovery session so the new password is what gets you back in.
-      await createBrowserSupabase().auth.signOut();
+      // The server checks the username is free before changing the password, so
+      // a clash can't leave the reset half-applied. It also signs out every
+      // existing session, so the new password is what gets you back in.
+      await applyPasswordReset(token, password, username);
       setDone(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Reset failed.");

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as store from "@/lib/history/supabase-store";
+import * as store from "@/lib/history/db-store";
 import { currentUserId } from "@/lib/user-context";
 import type { PostType } from "@/lib/types";
 
@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Missing fields: id, score." }, { status: 400 });
   }
   try {
-    await store.setHistoryScore(body.id, body.score);
+    await store.setHistoryScore(body.id, body.score, userId);
     return NextResponse.json({ ok: true });
   } catch {
     return fail();
@@ -73,7 +73,7 @@ export async function DELETE(req: NextRequest) {
   const all = req.nextUrl.searchParams.get("all");
   try {
     if (all === "true") await store.clearHistory(userId);
-    else if (id) await store.deleteHistory(id);
+    else if (id) await store.deleteHistory(id, userId);
     else return NextResponse.json({ error: "Provide ?id= or ?all=true." }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch {

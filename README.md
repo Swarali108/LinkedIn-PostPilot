@@ -17,10 +17,10 @@ visual prompt — in under a minute.
 - **Reach Optimizer** — scores each post 0–100 on hook, readability, authority, virality, CTA, and formatting, with improvement suggestions.
 
 **Phase 2 — Personalization**
-- **Brand Profile** — save your name, role, industry, audience, and voice. Every post is written *in your voice*. Stored in your browser (no backend required); the store interface is small enough to swap for Supabase later.
+- **Brand Profile** — save your name, role, industry, audience, and voice. Every post is written *in your voice*. Stored in your browser (no backend required); signed-in users get it saved to Postgres (Neon).
 
 **Phase 3/4 — Brand Memory + RAG**
-- **Brand Memory** — paste past posts; they're embedded with Gemini (`gemini-embedding-001`, 768-dim) and stored in a vector store (Supabase pgvector, or a local disk fallback).
+- **Brand Memory** — paste past posts; they're embedded with Gemini (`gemini-embedding-001`, 768-dim) and stored in a vector store (Neon Postgres + pgvector, or a local disk fallback).
 - **Retrieval-Augmented Generation** — when generating, PostPilot semantically retrieves your most relevant past posts (cosine similarity) and injects them so new posts match your voice. Generated posts can be saved back to memory so the system keeps learning your style.
 
 **Phase 5 — Agentic Workflow**
@@ -35,7 +35,7 @@ visual prompt — in under a minute.
 
 All Gemini calls use schema-constrained JSON output and retry transient 429/503 errors with exponential backoff.
 
-> **Note on persistence:** brand memory is stored at `data/memory.json` (great for local dev). Serverless filesystems are ephemeral, so for production back the vector store with Supabase pgvector or a hosted ChromaDB — the `lib/memory/store.ts` interface (`addMemory`/`searchMemories`/`listMemories`/`deleteMemory`) is the only thing that needs reimplementing.
+> **Note on persistence:** brand memory is stored at `data/memory.json` (great for local dev). Serverless filesystems are ephemeral, so for production set `DATABASE_URL` to use Neon Postgres + pgvector (see [NEON_SETUP.md](NEON_SETUP.md)).
 
 ## Getting started
 
@@ -88,7 +88,7 @@ lib/
 
 ## Roadmap
 
-Future phases (per the design doc): user profiles & personalization (Supabase),
+Future phases (per the design doc): user profiles & personalization (Neon),
 brand memory + RAG (ChromaDB embeddings), a multi-agent LangGraph workflow,
 content calendar, and analytics/engagement scoring.
 

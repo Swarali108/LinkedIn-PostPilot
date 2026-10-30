@@ -1,8 +1,8 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { cosineSimilarity, embed } from "../embeddings";
-import { isSupabaseConfigured } from "../supabase/client";
-import * as supabaseStore from "./supabase-store";
+import { isDbConfigured } from "../db";
+import * as dbStore from "./db-store";
 import type { MemoryHit, MemoryMeta, MemoryRecord, MemoryType } from "../types";
 
 function metaOf(r: MemoryRecord): MemoryMeta {
@@ -18,8 +18,8 @@ function metaOf(r: MemoryRecord): MemoryMeta {
  * Brand-memory vector store (Phase 3/4).
  *
  * Two backends behind one interface:
- *   • Supabase pgvector — used when SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are
- *     set. Persists across serverless invocations; this is the production path.
+ *   • Postgres + pgvector (Neon) — used when DATABASE_URL is set. Persists
+ *     across serverless invocations; this is the production path.
  *   • Disk JSON (below) — the zero-setup local fallback. Persists in local dev
  *     but NOT on serverless hosts (ephemeral filesystem).
  *
@@ -117,9 +117,9 @@ async function diskSearchMemories(
     .slice(0, k);
 }
 
-async function diskDeleteMemory(id: string): Promise<void> {
+async function diskDeleteMemory(id: string, userId = "local"): Promise<void> {
   const records = await load();
-  await persist(records.filter((r) => r.id !== id));
+  await persist(records.filter((r) => !(r.id === id && r.userId === userId)));
 }
 
 async function diskClearMemories(userId = "local"): Promise<void> {
@@ -127,7 +127,7 @@ async function diskClearMemories(userId = "local"): Promise<void> {
   await persist(records.filter((r) => r.userId !== userId));
 }
 
-// --- Public API: dispatch to Supabase when configured, else disk fallback. ---
+// --- Public API: dispatch to Postgres when configured, else disk fallback. ---
 
 /** Embed and store a piece of the user's writing (with optional engagement meta). */
 export function addMemory(
@@ -136,15 +136,15 @@ export function addMemory(
   userId = "local",
   meta: MemoryMeta = {}
 ): Promise<MemoryRecord> {
-  return isSupabaseConfigured()
-    ? supabaseStore.addMemory(text, type, userId, meta)
+  return isDbConfigured()
+    ? dbStore.addMemory(text, type, userId, meta)
     : diskAddMemory(text, type, userId, meta);
 }
 
 /** All memories for a user, newest first, without embeddings. */
 export function listMemories(userId = "local"): Promise<MemoryHit[]> {
-  return isSupabaseConfigured()
-    ? supabaseStore.listMemories(userId)
+  return isDbConfigured()
+    ? dbStore.listMemories(userId)
     : diskListMemories(userId);
 }
 
@@ -154,20 +154,20 @@ export function searchMemories(
   k = 3,
   userId = "local"
 ): Promise<MemoryHit[]> {
-  return isSupabaseConfigured()
-    ? supabaseStore.searchMemories(query, k, userId)
+  return isDbConfigured()
+    ? dbStore.searchMemories(query, k, userId)
     : diskSearchMemories(query, k, userId);
 }
 
-export function deleteMemory(id: string): Promise<void> {
-  return isSupabaseConfigured()
-    ? supabaseStore.deleteMemory(id)
-    : diskDeleteMemory(id);
+export function deleteMemory(id: string, userId = "local"): Promise<void> {
+  return isDbConfigured()
+    ? dbStore.deleteMemory(id, userId)
+    : diskDeleteMemory(id, userId);
 }
 
 export function clearMemories(userId = "local"): Promise<void> {
-  return isSupabaseConfigured()
-    ? supabaseStore.clearMemories(userId)
+  return isDbConfigured()
+    ? dbStore.clearMemories(userId)
     : diskClearMemories(userId);
 }
 

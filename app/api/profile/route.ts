@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as store from "@/lib/profile/supabase-store";
+import * as store from "@/lib/profile/db-store";
 import { currentUserId } from "@/lib/user-context";
 import type { BrandProfile } from "@/lib/types";
 

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AppChrome from "@/components/AppChrome";
-import RecoveryHandler from "@/components/RecoveryHandler";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -24,7 +23,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen font-sans text-ink antialiased">
-        <RecoveryHandler />
         <AppChrome>{children}</AppChrome>
       </body>
     </html>

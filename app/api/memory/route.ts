@@ -88,7 +88,7 @@ export async function DELETE(req: NextRequest) {
     if (all === "true") {
       await clearMemories(userId);
     } else if (id) {
-      await deleteMemory(id);
+      await deleteMemory(id, userId);
     } else {
       return NextResponse.json(
         { error: "Provide ?id= or ?all=true." },
