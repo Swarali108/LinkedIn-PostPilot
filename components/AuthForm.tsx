@@ -34,7 +34,11 @@ export default function AuthForm({ next }: { next: string }) {
       } else if (mode === "signup") {
         const { needsConfirm } = await signUp(username, email, password);
         if (needsConfirm) {
-          setNotice("Account created! Check your email to confirm, then log in.");
+          // Same wording whether or not the email already had an account, so
+          // signup can't be used to discover which emails are registered.
+          setNotice(
+            "Check your email for a confirmation link to finish signing up. If it doesn't arrive, try logging in to get a fresh one."
+          );
           setMode("login");
         } else {
           window.location.href = dest;
