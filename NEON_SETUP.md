@@ -19,19 +19,55 @@ works.
    npm run db:setup
    ```
 
-## 2. Auth + email env vars
+## 2. Environment variables
 
-Add these to `.env.local` and to Vercel (Project → Settings → Environment Variables):
+Set them in `.env.local` for local dev, and in Vercel under **Project → Settings →
+Environment Variables**. **Redeploy** after any change, because running
+deployments keep the values they were built with.
 
-```
-NEXT_PUBLIC_SITE_URL=http://localhost:3000        # your prod domain on Vercel
-BETTER_AUTH_SECRET=...                             # random 32+ bytes, see .env.example
-RESEND_API_KEY=re_...                              # https://resend.com/api-keys
-EMAIL_FROM=PostPilot <noreply@yourdomain.com>      # domain must be verified in Resend
-```
+| Variable | Vercel environments | Value |
+|---|---|---|
+| `DATABASE_URL` | Production + Preview | Neon **pooled** connection string |
+| `BETTER_AUTH_SECRET` | Production + Preview | Random 32+ chars, generated as shown in `.env.example`. Never the placeholder |
+| `RESEND_API_KEY` | Production + Preview | `re_…` from https://resend.com/api-keys |
+| `EMAIL_FROM` | Production + Preview | `PostPilot <noreply@your-verified-domain>` |
+| `NEXT_PUBLIC_SITE_URL` | **Production only** | `https://your-prod-domain`, with no trailing slash |
 
-In local dev you can leave `RESEND_API_KEY` blank. Confirmation and reset emails
-then get printed to the `npm run dev` terminal, where you can click the link.
+`NEXT_PUBLIC_SITE_URL` is Production-only on purpose. Previews leave it unset,
+so they fall back to their own `https://$VERCEL_URL`, and links in their emails
+point back at that preview. Locally, set it to `http://localhost:3000`.
+
+On startup the server logs a `[env] ✗ …` line for every required variable that
+is missing or still a placeholder. That's the first thing to check in
+**Vercel → Logs** if auth misbehaves.
+
+### Resend sender requirements
+
+Resend only delivers from a domain you've proven you own:
+
+1. Go to Resend → **Domains → Add domain**, and add a domain or subdomain you control.
+2. Add the DNS records Resend shows (SPF/DKIM) at your DNS provider, and wait
+   until the domain shows **Verified**.
+3. Set `EMAIL_FROM` to an address on that domain, e.g. `PostPilot <noreply@mail.example.com>`.
+
+Without a verified domain, the only sender allowed is `onboarding@resend.dev`
+(used when `EMAIL_FROM` is unset), and it can **only** send to the email address
+of your own Resend account. Use it for a quick self-test, never for real users.
+When Resend rejects an email, the server log shows its exact reason, e.g.
+`[email] Resend rejected the email (HTTP 403 …): The yourdomain.com domain is not verified`.
+
+### Local dev
+
+Leave `RESEND_API_KEY` blank locally. Confirmation and reset emails then get
+printed to the `npm run dev` terminal, where you can click the link. On Vercel a
+missing key is treated as an error, so emails are never silently dropped.
+
+### What users see if email fails
+
+- **Sign-up:** the account is rolled back and the user sees "We couldn't send the
+  email right now", so they can simply retry.
+- **Unconfirmed accounts:** if the confirmation email got lost, logging in re-sends
+  it, and signing up again with the same email replaces the abandoned attempt.
 
 ## 3. Migrating from Supabase (one-time)
 

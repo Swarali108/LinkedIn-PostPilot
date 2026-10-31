@@ -50,19 +50,29 @@ export default function ResetForm() {
       return;
     }
     let cancelled = false;
-    lookupResetToken(t).then((acct) => {
-      if (cancelled) return;
-      if (!acct) {
-        setLinkExpired(true);
+    lookupResetToken(t)
+      .then((acct) => {
+        if (cancelled) return;
+        if (!acct) {
+          setLinkExpired(true);
+          setStage("needs-link");
+          return;
+        }
+        setToken(t);
+        setAccountEmail(acct.email);
+        // Prefill the current username so it's clear what's being changed.
+        setUsername(acct.username);
+        setStage("ready");
+      })
+      .catch((err) => {
+        // Couldn't check the link (offline / server error) — it may still be
+        // valid, so say so rather than calling it expired.
+        if (cancelled) return;
+        setError(
+          `${err instanceof Error ? err.message : "Couldn't check your link."} Reload this page to retry.`
+        );
         setStage("needs-link");
-        return;
-      }
-      setToken(t);
-      setAccountEmail(acct.email);
-      // Prefill the current username so it's clear what's being changed.
-      setUsername(acct.username);
-      setStage("ready");
-    });
+      });
     return () => {
       cancelled = true;
     };

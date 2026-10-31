@@ -16,21 +16,57 @@ function normalizeUsername(username: string): string {
   return uname;
 }
 
-/** Friendlier wording for the error codes users actually hit. */
-function authError(error: { code?: string; message?: string }): Error {
+const NETWORK_ERROR = "Can't reach the server. Check your connection and try again.";
+
+type AuthErrorShape = { code?: string; message?: string; status?: number };
+
+/** A user-facing message for an auth API error. Never echoes raw server
+ * internals — 5xx responses get a generic line with the status code. */
+function authError(error: AuthErrorShape): Error {
   switch (error.code) {
     case "USERNAME_IS_ALREADY_TAKEN":
       return new Error("That username is already taken.");
-    case "USER_ALREADY_EXISTS":
-    case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
-      return new Error("An account with that email already exists.");
     case "INVALID_USERNAME_OR_PASSWORD":
       return new Error("Wrong username or password.");
     case "EMAIL_NOT_VERIFIED":
-      return new Error("Confirm your email first — we've sent you a fresh link.");
-    default:
-      return new Error(error.message || "Something went wrong.");
+      return new Error(
+        "Confirm your email first — we've re-sent the confirmation link to your inbox."
+      );
+    case "PASSWORD_TOO_SHORT":
+      return new Error("Password must be at least 6 characters.");
+    case "PASSWORD_TOO_LONG":
+      return new Error("That password is too long.");
+    case "INVALID_EMAIL":
+      return new Error("Enter a valid email address.");
+    case "INVALID_USERNAME":
+    case "USERNAME_TOO_SHORT":
+    case "USERNAME_TOO_LONG":
+      return new Error("Username must be 3–30 chars (letters, numbers, _ . -).");
+    case "EMAIL_SEND_FAILED":
+      return new Error("We couldn't send the email right now. Please try again in a few minutes.");
   }
+  const status = error.status ?? 0;
+  if (status === 0) return new Error(NETWORK_ERROR);
+  if (status === 429) return new Error("Too many attempts. Please wait a minute and try again.");
+  if (status >= 500) {
+    return new Error(`The server ran into a problem (HTTP ${status}). Please try again shortly.`);
+  }
+  return new Error(error.message || `Request failed (HTTP ${status}). Please try again.`);
+}
+
+/** Run an auth client call; turn thrown network failures and returned API
+ * errors into user-facing Errors. */
+async function run<T>(
+  call: () => Promise<{ data: T; error: AuthErrorShape | null }>
+): Promise<T> {
+  let result: { data: T; error: AuthErrorShape | null };
+  try {
+    result = await call();
+  } catch {
+    throw new Error(NETWORK_ERROR);
+  }
+  if (result.error) throw authError(result.error);
+  return result.data;
 }
 
 export async function signUp(
@@ -39,25 +75,27 @@ export async function signUp(
   password: string
 ): Promise<{ needsConfirm: boolean }> {
   const uname = normalizeUsername(username);
-  const { data, error } = await authClient.signUp.email({
-    email: email.trim(),
-    password,
-    name: uname,
-    username: uname,
-    // Where the confirmation link lands once verified.
-    callbackURL: "/dashboard",
-  });
-  if (error) throw authError(error);
+  const data = await run(() =>
+    authClient.signUp.email({
+      email: email.trim(),
+      password,
+      name: uname,
+      username: uname,
+      // Where the confirmation link lands once verified.
+      callbackURL: "/dashboard",
+    })
+  );
   // Email confirmation is required, so there's no session yet.
   return { needsConfirm: !data?.token };
 }
 
 export async function signIn(username: string, password: string): Promise<void> {
-  const { error } = await authClient.signIn.username({
-    username: username.trim().toLowerCase(),
-    password,
-  });
-  if (error) throw authError(error);
+  await run(() =>
+    authClient.signIn.username({
+      username: username.trim().toLowerCase(),
+      password,
+    })
+  );
   clearGuest();
 }
 
@@ -78,19 +116,27 @@ export async function signOut(): Promise<void> {
  * which emails have accounts.
  */
 export async function requestPasswordReset(email: string): Promise<void> {
-  const { error } = await authClient.requestPasswordReset({
-    email: email.trim(),
-    redirectTo: "/reset",
-  });
-  if (error) throw authError(error);
+  await run(() =>
+    authClient.requestPasswordReset({
+      email: email.trim(),
+      redirectTo: "/reset",
+    })
+  );
 }
 
-/** Who a reset token belongs to, or null if it's invalid/expired/spent. */
+/** Who a reset token belongs to, or null if it's invalid/expired/spent. Throws
+ * on network/server failure, so that isn't mistaken for a spent link. */
 export async function lookupResetToken(
   token: string
 ): Promise<{ email: string; username: string } | null> {
-  const res = await fetch(`/api/reset?token=${encodeURIComponent(token)}`);
-  if (!res.ok) return null;
+  let res: Response;
+  try {
+    res = await fetch(`/api/reset?token=${encodeURIComponent(token)}`);
+  } catch {
+    throw new Error(NETWORK_ERROR);
+  }
+  if (res.status === 400) return null;
+  if (!res.ok) throw authError({ status: res.status });
   return (await res.json()) as { email: string; username: string };
 }
 
@@ -101,14 +147,22 @@ export async function applyPasswordReset(
   username: string
 ): Promise<void> {
   const uname = username.trim() ? normalizeUsername(username) : "";
-  const res = await fetch("/api/reset", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token, password, username: uname }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password, username: uname }),
+    });
+  } catch {
+    throw new Error(NETWORK_ERROR);
+  }
   if (!res.ok) {
+    // 4xx carry a user-facing message from our own route; 5xx get the generic line.
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Reset failed.");
+    throw res.status < 500 && data.error
+      ? new Error(data.error)
+      : authError({ status: res.status });
   }
 }
 
